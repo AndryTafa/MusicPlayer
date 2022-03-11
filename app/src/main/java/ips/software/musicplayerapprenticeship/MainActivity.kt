@@ -1,38 +1,37 @@
 package ips.software.musicplayerapprenticeship
 
 import android.Manifest
-import android.app.Activity
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
-import android.util.Log
-import android.widget.Toast
+import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import ips.software.musicplayerapprenticeship.models.SongModel
 import ips.software.musicplayerapprenticeship.ui.theme.MusicPlayerApprenticeshipTheme
 import ips.software.musicplayerapprenticeship.views.appLayout.AppLayout
 import java.io.File
-import java.io.FileFilter
-
 
 class MainActivity : ComponentActivity() {
     companion object {
         const val REQUEST_ID_MULTIPLE_PERMISSIONS = 7
+        lateinit var musicListMA : ArrayList<SongModel>
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        setAllAudio()
         setContent {
             MusicPlayerApprenticeshipTheme {
                 // A surface container using the 'background' color from the theme
@@ -40,22 +39,49 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colors.background
                 ) {
-                    AppLayout()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        AppLayout(musicListMA)
+                    }
                 }
             }
         }
-        if (checkAndRequestPermissions()) {
-            val directory: File = File(Environment.getExternalStoragePublicDirectory("Music").toString())
-            var mp3Files: Array<File> = directory.listFiles { pathname -> pathname.name.endsWith(".mp3") }
-
-            mp3Files.forEach {
-
-            }
-        } else {
-            Toast.makeText(applicationContext, "Storage permission not granted.", Toast.LENGTH_LONG).show()
-        }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
+    private fun setAllAudio() {
+        musicListMA = getAllAudio()
+    }
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    @SuppressLint("Recycle", "Range")
+    private fun getAllAudio(): ArrayList<SongModel>{
+        val tempList = ArrayList<SongModel>()
+        val selection = MediaStore.Audio.Media.IS_MUSIC +  " != 0"
+        val projection = arrayOf(MediaStore.Audio.Media._ID,MediaStore.Audio.Media.TITLE,MediaStore.Audio.Media.ALBUM,
+            MediaStore.Audio.Media.ARTIST,MediaStore.Audio.Media.DURATION,MediaStore.Audio.Media.DATE_ADDED,
+            MediaStore.Audio.Media.DATA)
+
+        val cursor = this.contentResolver.query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, projection,selection,null,
+            MediaStore.Audio.Media.DATE_ADDED + " DESC", null)
+        if(cursor != null){
+            if(cursor.moveToFirst())
+                do {
+                    val titleC = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.TITLE))?:"Unknown"
+                    val idC = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media._ID))?:"Unknown"
+                    val albumC = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM))?:"Unknown"
+                    val artistC = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST))?:"Unknown"
+                    val pathC = cursor.getString(cursor.getColumnIndex(MediaStore.Audio.Media.DATA))
+                    val durationC = cursor.getLong(cursor.getColumnIndex(MediaStore.Audio.Media.DURATION))
+
+                    val music = SongModel(id = idC, title = titleC, albums = albumC, artist = artistC, path = pathC, duration = durationC)
+                    val file = File(music.path)
+                    if(file.exists())
+                        tempList.add(music)
+                }while (cursor.moveToNext())
+            cursor.close()
+        }
+        return tempList
+    }
 
     private fun checkAndRequestPermissions(): Boolean {
         val write = ContextCompat.checkSelfPermission(
@@ -101,6 +127,5 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun DefaultPreview() {
     MusicPlayerApprenticeshipTheme {
-        AppLayout()
     }
 }

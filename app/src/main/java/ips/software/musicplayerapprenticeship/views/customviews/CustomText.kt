@@ -12,6 +12,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ips.software.musicplayerapprenticeship.ui.theme.MusicPlayerApprenticeshipTheme
+import kotlin.reflect.typeOf
 
 
 @Composable
@@ -22,12 +23,23 @@ fun CustomTextNormalFont(customText: String) {
     )
 }
 
+@Composable
+fun CustomSmallTextNormalFont(customText: String) {
+    Text(
+        text = customText,
+        fontSize = 13.sp,
+    )
+}
+
 class CustomText {
     @Preview(showBackground = true)
     @Composable
     fun DefaultPreview() {
         MusicPlayerApprenticeshipTheme {
-            CustomTextNormalFont(customText = "This is a demo.")
+            Column() {
+                CustomTextNormalFont(customText = "This is a demo.")
+                CustomSmallTextNormalFont(customText = "This is a second demo.")
+            }
         }
     }
 }

@@ -13,20 +13,22 @@ import ips.software.musicplayerapprenticeship.ui.theme.MusicPlayerApprenticeship
 import ips.software.musicplayerapprenticeship.views.customviews.MusicCellComp
 
 @Composable
-fun AppLayout() {
-    var songListDemo = listOf(
-        SongModel("Andry", "Demo"),
-        SongModel("IPS", "Demo"),
-        SongModel("IDK", "Demo"),
-        SongModel("Andry", "IPS"),
-    )
+fun AppLayout(songs: List<SongModel>) {
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
+        if (songs.isNullOrEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+            ) {
+
+            }
+        }
         LazyColumn(
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(songListDemo) {
+            items(songs) {
                 MusicCellComp(song = it)
             }
         }
@@ -38,7 +40,6 @@ class MainLayout {
     @Composable
     fun AppLayout_Preview() {
         MusicPlayerApprenticeshipTheme {
-            AppLayout()
         }
     }
 }

@@ -38,8 +38,8 @@ fun MusicCellComp(song: SongModel) {
                             vertical = 3.dp
                         ),
                 ) {
-                    CustomTextNormalFont("${song.songName}")
-                    CustomTextNormalFont("${song.artistName}")
+                    CustomTextNormalFont(song.title)
+                    CustomSmallTextNormalFont(song.artist)
                 }
                 Column( ) {
                     Icon(
@@ -57,7 +57,6 @@ class MusicCell {
     @Composable
     fun DefaultPreview() {
         MusicPlayerApprenticeshipTheme {
-            MusicCellComp(SongModel("Andry", "Demo"))
         }
     }
 }
