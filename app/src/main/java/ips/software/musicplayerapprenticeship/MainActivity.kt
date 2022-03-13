@@ -43,6 +43,8 @@ class MainActivity : ComponentActivity() {
         lateinit var allSongs: ArrayList<SongModel>
         var expanded = mutableStateOf(false)
         var mediaPlayer = MediaPlayer()
+        var currentSongPath = mutableStateOf("")
+        var currentSongPaused = mutableStateOf(false)
     }
 
 
@@ -210,7 +212,15 @@ class MainActivity : ComponentActivity() {
         Card(
             elevation = 0.dp,
             onClick = {
-                playSong(song = song)
+                if (currentSongPath.value == song.path) {
+                    if (currentSongPaused.value) {
+                        resumeSong()
+                    } else {
+                        pauseSong()
+                    }
+                } else {
+                    playSong(song = song)
+                }
             },
             content = {
                 Column(
@@ -288,17 +298,25 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun playSong(song: SongModel) {
-        mediaPlayer.stop()
-        mediaPlayer = MediaPlayer()
-        mediaPlayer.setDataSource(this, Uri.parse(song.path))
+//        mediaPlayer.stop()
+//        mediaPlayer = MediaPlayer()
+        mediaPlayer.reset()
+        currentSongPath.value = song.path
+        currentSongPaused.value = false
+        mediaPlayer.setDataSource(this, Uri.parse(currentSongPath.value))
         mediaPlayer.prepare()
         mediaPlayer.start()
+
     }
 
-    private fun stopSong(song: SongModel) {
-        mediaPlayer.setDataSource(this, Uri.parse(song.path))
-        mediaPlayer.prepare()
+    private fun pauseSong() {
+        mediaPlayer.pause()
+        currentSongPaused.value = true
+    }
+
+    private fun resumeSong() {
         mediaPlayer.start()
+        currentSongPaused.value = false
     }
 }
 
