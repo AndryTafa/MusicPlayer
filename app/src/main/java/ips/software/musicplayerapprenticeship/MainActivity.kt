@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import ips.software.musicplayerapprenticeship.models.SongModel
@@ -188,7 +189,8 @@ class MainActivity : ComponentActivity() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    CustomTextNormalFont(customText = "No songs found")
+                    Text(text = "😱", fontSize = 50.sp)
+                    CustomTextNormalFont(customText = "You have no songs")
                 }
             } else {
                 LazyColumn(
