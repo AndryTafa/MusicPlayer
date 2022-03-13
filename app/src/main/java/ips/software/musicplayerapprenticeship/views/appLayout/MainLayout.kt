@@ -11,35 +11,7 @@ import androidx.compose.ui.unit.dp
 import ips.software.musicplayerapprenticeship.models.SongModel
 import ips.software.musicplayerapprenticeship.ui.theme.MusicPlayerApprenticeshipTheme
 import ips.software.musicplayerapprenticeship.views.customviews.CustomTextNormalFont
-import ips.software.musicplayerapprenticeship.views.customviews.MusicCellComp
 
-@Composable
-fun AppLayout(songs: List<SongModel>) {
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        if (songs.isNullOrEmpty()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                CustomTextNormalFont(customText = "No songs found")
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp),
-            ) {
-                items(songs) {
-                    MusicCellComp(song = it)
-                }
-            }
-        }
-    }
-}
 
 class MainLayout {
     @Preview(showBackground = true)
