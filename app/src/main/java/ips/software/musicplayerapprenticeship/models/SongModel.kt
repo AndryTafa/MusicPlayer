@@ -6,5 +6,5 @@ data class SongModel(
     val albums: String = "Unknown",
     val artist: String = "Unknown",
     val duration: Long = 0,
-    val path: String = "Unknown"
+    var path: String = "Unknown"
 )

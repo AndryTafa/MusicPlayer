@@ -3,8 +3,6 @@ package ips.software.musicplayerapprenticeship
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
-import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
@@ -18,14 +16,14 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,7 +33,12 @@ import ips.software.musicplayerapprenticeship.models.SongModel
 import ips.software.musicplayerapprenticeship.ui.theme.MusicPlayerApprenticeshipTheme
 import ips.software.musicplayerapprenticeship.views.customviews.CustomSmallTextNormalFont
 import ips.software.musicplayerapprenticeship.views.customviews.CustomTextNormalFont
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
+import java.lang.ArithmeticException
+import java.lang.IllegalStateException
 
 class MainActivity : ComponentActivity() {
 
@@ -44,8 +47,12 @@ class MainActivity : ComponentActivity() {
         lateinit var allSongs: ArrayList<SongModel>
         var expanded = mutableStateOf(false)
         var mediaPlayer = MediaPlayer()
-        var currentSongPath = mutableStateOf("")
-        var currentSongPaused = mutableStateOf(false)
+        var currentSong = mutableStateOf(SongModel())
+        var isCurrentSongPaused = mutableStateOf(false)
+        var isCurrentSongEnded = mutableStateOf(false)
+        var mCurrentTimeStamp = mutableStateOf(0)
+        var currentSongsQueue = mutableStateListOf(SongModel())
+        var currentSongIndex = mutableStateOf(0)
     }
 
 
@@ -53,6 +60,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setAllSongs()
+        updateCurrentTimeStamp()
         configureLayout()
     }
 
@@ -83,6 +91,7 @@ class MainActivity : ComponentActivity() {
     private fun getAllSongs(): ArrayList<SongModel> {
         val tempList = ArrayList<SongModel>()
         val selection = MediaStore.Audio.Media.IS_MUSIC + " != 0"
+
         val projection = arrayOf(
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.TITLE,
@@ -132,9 +141,11 @@ class MainActivity : ComponentActivity() {
                         Log.d("MainActivity", "Song path: ${music.path}")
                         tempList.add(music)
                     }
-
                 } while (cursor.moveToNext())
             cursor.close()
+        }
+        tempList.forEach {
+            currentSongsQueue.add(it)
         }
         return tempList
     }
@@ -182,7 +193,52 @@ class MainActivity : ComponentActivity() {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            if (songs.isNullOrEmpty()) {
+            if (!songs.isNullOrEmpty()) {
+                val roundedCorners = 7.dp
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .weight(2f),
+                        horizontalArrangement = Arrangement.SpaceAround
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                playSongWithExceptionHandling(song = songs[0])
+                            },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f)
+                                .padding(vertical = 10.dp, horizontal = 10.dp),
+                            shape = RoundedCornerShape(roundedCorners)
+                        ) {
+                            Text(text = "Play all")
+                        }
+                        Button(
+                            onClick = { },
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .weight(1f)
+                                .padding(vertical = 10.dp, horizontal = 10.dp),
+                            shape = RoundedCornerShape(roundedCorners)
+                        ) {
+                            Text(
+                                text = "Shuffle",
+                                color = Color.White
+                            )
+                        }
+                    }
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(25f),
+                    ) {
+                        items(songs) {
+                            MusicCellComp(song = it)
+                        }
+                    }
+                }
+            } else {
                 Column(
                     modifier = Modifier
                         .fillMaxSize(),
@@ -192,16 +248,6 @@ class MainActivity : ComponentActivity() {
                     Text(text = "😱", fontSize = 50.sp)
                     CustomTextNormalFont(customText = "You have no songs")
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp),
-                ) {
-                    items(songs) {
-                        MusicCellComp(song = it)
-                    }
-                }
             }
         }
     }
@@ -210,23 +256,26 @@ class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterialApi::class)
     @Composable
     fun MusicCellComp(song: SongModel) {
-        MenuDropDown()
         Card(
             elevation = 0.dp,
             onClick = {
-                if (currentSongPath.value == song.path) {
-                    if (currentSongPaused.value) {
-                        resumeSong()
+                if (currentSong.value.path == song.path) {
+                    if (!isCurrentSongEnded.value) {
+                        if (isCurrentSongPaused.value) {
+                            resumeSong()
+                        } else {
+                            pauseSong()
+                        }
                     } else {
-                        pauseSong()
+                        playSongWithExceptionHandling(song)
                     }
                 } else {
-                    playSong(song = song)
+                    playSongWithExceptionHandling(song)
                 }
             },
             content = {
                 Column(
-                    modifier = Modifier.padding(top = 10.dp),
+                    modifier = Modifier.padding(bottom = 10.dp),
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -262,7 +311,7 @@ class MainActivity : ComponentActivity() {
                                             "Three dots clicked",
                                             Toast.LENGTH_LONG
                                         ).show()
-//                                        playSong(song = song)
+                                        debugLogs()
                                     },
                                     content = {
                                         Icon(
@@ -299,26 +348,113 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun playSong(song: SongModel) {
-//        mediaPlayer.stop()
-//        mediaPlayer = MediaPlayer()
-        mediaPlayer.reset()
-        currentSongPath.value = song.path
-        currentSongPaused.value = false
-        mediaPlayer.setDataSource(this, Uri.parse(currentSongPath.value))
-        mediaPlayer.prepare()
-        mediaPlayer.start()
+    private fun attemptStartSong(song: SongModel): Boolean {
+        Log.d("MainActivity", "Started playing ${song.title}")
+        return try {
+            mediaPlayer.reset()
+            currentSong.value.path = song.path
+            isCurrentSongPaused.value = false
+            isCurrentSongEnded.value = false
+            mediaPlayer.setDataSource(this, Uri.parse(currentSong.value.path))
+            mediaPlayer.prepare()
+            mediaPlayer.start()
+            debugLogs()
+            true
+        } catch (e: IllegalStateException) {
+            Log.d("MainActivity", "Illegal state exception caught")
+            false
+        }
+    }
 
+    private fun debugLogs() {
+        val demo: String = mediaPlayer.currentPosition.toString()
+        val demoTwo: String = mediaPlayer.timestamp.toString()
+        val demoThree: String = mediaPlayer.duration.toString()
+        Log.d("MainActivity", "current position:\t$demo")
+        Log.d("MainActivity", "timestamp:\t\t\t$demoTwo")
+        Log.d("MainActivity", "duration:\t\t\t$demoThree")
+        Log.d("MainActivity", "mCurrentTimeStamp:\t${mCurrentTimeStamp.value}")
+        Log.d("MainActivity", "songPaused:\t\t\t${isCurrentSongPaused.value}")
+        Log.d("MainActivity", "songEnded:\t\t\t${isCurrentSongEnded.value}")
+    }
+
+    private fun updateCurrentTimeStamp() {
+        // update song timestamp on background thread
+        CoroutineScope(Dispatchers.IO).launch {
+            while (true) {
+                while (!isCurrentSongPaused.value) {
+                    try {
+                        mCurrentTimeStamp.value = mediaPlayer.currentPosition
+                        if (mCurrentTimeStamp.value > 0 && mediaPlayer.duration > 0) {
+                            try {
+                                if (checkSongDidEnd()) {
+                                    val demoIndex = getCurrentSongIndexInQueue()
+                                    if (currentSongIndex.value != currentSongsQueue.size)
+                                    playSongWithExceptionHandling(currentSongsQueue[getCurrentSongIndexInQueue() + 1])
+                                }
+                            } catch (e: ArithmeticException) {
+                                Log.d("MainActivity", "Attempted to divide something by 0")
+                                Log.d(
+                                    "MainActivity", "Current variables:\n" +
+                                            "mCurrentTimeStamp.value: ${mCurrentTimeStamp.value}" +
+                                            "mediaPlayer.duration: ${mediaPlayer.duration}"
+                                )
+                            }
+                        }
+                        currentSongIndex.value = getCurrentSongIndexInQueue()
+                    } catch (e: Exception) {
+                    }
+                }
+            }
+        }
+    }
+
+    private fun getCurrentSongIndexInQueue(): Int {
+        var songIndex = 1
+        for (song in currentSongsQueue.withIndex()) {
+            if (currentSong.value.path == song.value.path) {
+                songIndex = song.index
+            }
+        }
+        return songIndex
+    }
+
+    private fun checkSongDidEnd(): Boolean {
+        if ((mCurrentTimeStamp.value / mediaPlayer.duration) >= 0.99) {
+            isCurrentSongEnded.value = true
+            return isCurrentSongEnded.value
+        }
+        return isCurrentSongEnded.value
     }
 
     private fun pauseSong() {
         mediaPlayer.pause()
-        currentSongPaused.value = true
+        isCurrentSongPaused.value = true
+        isCurrentSongEnded.value = false
+        debugLogs()
     }
 
     private fun resumeSong() {
         mediaPlayer.start()
-        currentSongPaused.value = false
+        mCurrentTimeStamp.value = mediaPlayer.currentPosition
+        isCurrentSongEnded.value = false
+        isCurrentSongPaused.value = false
+        debugLogs()
+    }
+
+
+    private fun playSongWithExceptionHandling(song: SongModel) {
+        if (!attemptStartSong(song = song)) {
+            if (!attemptStartSong(song = song)) {
+                if (!attemptStartSong(song = song)) {
+                    Toast.makeText(
+                        applicationContext,
+                        "Couldn't play song, please try again",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
     }
 }
 
